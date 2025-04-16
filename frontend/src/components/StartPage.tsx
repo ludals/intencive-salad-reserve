@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Calendar from "@/components/Calendar";
 import InfoModal from "@/components/InfoModal";
 import styled from "styled-components";
@@ -7,12 +7,24 @@ export default function StartPage() {
   const [reservedDates] = useState([
     "2025-04-04",
     "2025-04-09",
-    "2025-04-13",
+    "2025-04-15",
     "2025-04-29",
   ]);
+
   const [form, setForm] = useState({ name: "", id: "", dept: "" });
   const [submitted, setSubmitted] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("userForm");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      setForm(parsed);
+      setSubmitted(true);
+    } else {
+      setIsModalOpen(true);
+    }
+  }, []);
 
   const handleSubmit = (data: typeof form) => {
     setForm(data);
@@ -22,11 +34,7 @@ export default function StartPage() {
 
   return (
     <PageWrapper>
-      <InfoModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleSubmit}
-      />
+      <InfoModal isOpen={isModalOpen} onSubmit={handleSubmit} />
       <ContentGrid>
         <LeftSide>
           {!submitted && (
@@ -34,9 +42,7 @@ export default function StartPage() {
               정보입력
             </InfoButton>
           )}
-
           {submitted && <WelcomeText>{form.name}님 😊</WelcomeText>}
-
           <Title>샐러드 간편 예약</Title>
           <Calendar reservedDates={reservedDates} />
         </LeftSide>
@@ -104,6 +110,7 @@ const Title = styled.h1`
 const Card = styled.div`
   background-color: white;
   padding: 20px;
+  height: 37%;
   border-radius: 16px;
   align-items: center;
   margin-bottom: 30px;

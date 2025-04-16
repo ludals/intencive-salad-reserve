@@ -1,18 +1,30 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styled from "styled-components";
 
 interface InfoModalProps {
   isOpen: boolean;
-  onClose: () => void;
   onSubmit: (form: { name: string; id: string; dept: string }) => void;
 }
 
-export default function InfoModal({
-  isOpen,
-  onClose,
-  onSubmit,
-}: InfoModalProps) {
+export default function InfoModal({ isOpen, onSubmit }: InfoModalProps) {
   const [form, setForm] = useState({ name: "", id: "", dept: "" });
+
+  useEffect(() => {
+    if (isOpen) {
+      const saved = localStorage.getItem("userForm");
+      if (saved) {
+        setForm(JSON.parse(saved));
+      }
+    }
+  }, [isOpen]);
+
+  const isValid = form.name.trim() && form.id.trim() && form.dept.trim();
+
+  const handleSubmit = () => {
+    if (!isValid) return;
+    localStorage.setItem("userForm", JSON.stringify(form));
+    onSubmit(form);
+  };
 
   if (!isOpen) return null;
 
@@ -40,7 +52,9 @@ export default function InfoModal({
             onChange={(e) => setForm({ ...form, dept: e.target.value })}
           />
         </ModalField>
-        <SubmitButton onClick={() => onSubmit(form)}>Submit</SubmitButton>
+        <SubmitButton disabled={!isValid} onClick={handleSubmit}>
+          Submit
+        </SubmitButton>
       </ModalContent>
     </ModalOverlay>
   );
