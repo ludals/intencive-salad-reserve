@@ -2,18 +2,24 @@ import { useEffect, useState } from "react";
 import Calendar from "@/components/Calendar";
 import InfoModal from "@/components/InfoModal";
 import styled from "styled-components";
+import ReserveModal from "@/components/ReserveModal";
+import EditModal from "@/components/EditModal";
 
 export default function StartPage() {
   const [reservedDates] = useState([
     "2025-04-04",
     "2025-04-09",
     "2025-04-15",
+    "2025-04-21",
     "2025-04-29",
   ]);
 
   const [form, setForm] = useState({ name: "", id: "", dept: "" });
   const [submitted, setSubmitted] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showReserveModal, setShowReserveModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("userForm");
@@ -32,9 +38,31 @@ export default function StartPage() {
     setIsModalOpen(false);
   };
 
+  const handleDateClick = (date: string, isReserved: boolean) => {
+    setSelectedDate(date);
+    if (isReserved) {
+      setShowEditModal(true);
+    } else {
+      setShowReserveModal(true);
+    }
+  };
+
   return (
     <PageWrapper>
       <InfoModal isOpen={isModalOpen} onSubmit={handleSubmit} />
+      {showReserveModal && selectedDate && (
+        <ReserveModal
+          date={selectedDate}
+          onClose={() => setShowReserveModal(false)}
+        />
+      )}
+
+      {showEditModal && selectedDate && (
+        <EditModal
+          date={selectedDate}
+          onClose={() => setShowEditModal(false)}
+        />
+      )}
       <ContentGrid>
         <LeftSide>
           {!submitted && (
@@ -44,7 +72,10 @@ export default function StartPage() {
           )}
           {submitted && <WelcomeText>{form.name}님 😊</WelcomeText>}
           <Title>샐러드 간편 예약</Title>
-          <Calendar reservedDates={reservedDates} />
+          <Calendar
+            reservedDates={reservedDates}
+            onDateClick={handleDateClick}
+          />
         </LeftSide>
 
         <RightSide>

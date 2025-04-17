@@ -5,6 +5,11 @@ import styled from "styled-components";
 
 interface CalendarProps {
   reservedDates: string[];
+  onDateClick: (
+    date: string,
+    isReserved: boolean,
+    isDeadlineVisible: boolean
+  ) => void;
 }
 
 const menuByDay = {
@@ -59,7 +64,10 @@ const toYMD = (date: Date): string => {
   return date.toLocaleDateString("sv-SE");
 };
 
-export default function Calendar({ reservedDates }: CalendarProps) {
+export default function Calendar({
+  reservedDates,
+  onDateClick,
+}: CalendarProps) {
   return (
     <CalendarWrapper>
       <StyledCalendar
@@ -71,7 +79,6 @@ export default function Calendar({ reservedDates }: CalendarProps) {
 
           const now = new Date();
           now.setDate(now.getDate() - 1);
-
           const isDeadlineOver = now > new Date(deadline);
           const msInDay = 1000 * 60 * 60 * 24;
           const isOverWeek =
@@ -84,15 +91,14 @@ export default function Calendar({ reservedDates }: CalendarProps) {
         tileContent={({ date }) => {
           const formatted = toYMD(date);
           const isReserved = reservedDates.includes(formatted);
-
           const day = date.getDay();
+
           const saladMenu =
             day >= 1 && day <= 5
               ? menuByDay[day as keyof typeof menuByDay]
               : "";
 
           const deadline = getDeadline(formatted);
-
           const now = new Date();
           now.setDate(now.getDate() - 1);
           const isDeadlineOver = now > new Date(deadline);
@@ -101,15 +107,38 @@ export default function Calendar({ reservedDates }: CalendarProps) {
             (new Date(deadline).getTime() - now.getTime()) / msInDay > 6;
           const isHoliday = isWeekend(date) || holidays.has(formatted);
 
+          const isDeadlineVisible =
+            !isHoliday && !isDeadlineOver && !isOverWeek;
+
           return (
             <DayCell>
               <span>{saladMenu}</span>
-              {!isHoliday && !isDeadlineOver && !isOverWeek && (
+              {isDeadlineVisible && (
                 <DeadlineText>마감: {deadline}</DeadlineText>
               )}
               {isReserved && <SaladIcon src="/icon/salad.png" alt="reserved" />}
             </DayCell>
           );
+        }}
+        onClickDay={(date) => {
+          const formatted = toYMD(date);
+          const isReserved = reservedDates.includes(formatted);
+
+          const deadline = getDeadline(formatted);
+          const now = new Date();
+          now.setDate(now.getDate() - 1);
+          const isDeadlineOver = now > new Date(deadline);
+          const msInDay = 1000 * 60 * 60 * 24;
+          const isOverWeek =
+            (new Date(deadline).getTime() - now.getTime()) / msInDay > 6;
+          const isHoliday = isWeekend(date) || holidays.has(formatted);
+
+          const isDeadlineVisible =
+            !isHoliday && !isDeadlineOver && !isOverWeek;
+
+          if (isDeadlineVisible) {
+            onDateClick(formatted, isReserved, isDeadlineVisible);
+          }
         }}
       />
     </CalendarWrapper>
@@ -131,6 +160,10 @@ const StyledCalendar = styled(ReactCalendar)`
   .react-calendar__tile {
     height: 100px;
     vertical-align: top;
+  }
+  .react-calendar__tile--active {
+    color: black !important;
+    font-weight: bold;
   }
 
   .react-calendar__tile.highlight-cell {
