@@ -13,6 +13,33 @@ services:
       - "4000:4000"
     networks:
       - app-network
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: salad_user
+      DB_PASSWORD: salad_pass
+      DB_NAME: salad_reservation
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    container_name: salad-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: salad_reservation
+      MYSQL_USER: salad_user
+      MYSQL_PASSWORD: salad_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - app-network
 
 networks:
   app-network:
+
+volumes:
+  mysql-data:
