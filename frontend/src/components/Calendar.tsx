@@ -1,10 +1,11 @@
+// ✅ Calendar.tsx (수정 버전: quantity 기반 아이콘)
 import React from "react";
 import ReactCalendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import styled from "styled-components";
 
 interface CalendarProps {
-  reservedDates: string[];
+  reservedMap: { [date: string]: number };
   onDateClick: (
     date: string,
     isReserved: boolean,
@@ -64,10 +65,7 @@ const toYMD = (date: Date): string => {
   return date.toLocaleDateString("sv-SE");
 };
 
-export default function Calendar({
-  reservedDates,
-  onDateClick,
-}: CalendarProps) {
+export default function Calendar({ reservedMap, onDateClick }: CalendarProps) {
   return (
     <CalendarWrapper>
       <StyledCalendar
@@ -90,7 +88,8 @@ export default function Calendar({
         }}
         tileContent={({ date }) => {
           const formatted = toYMD(date);
-          const isReserved = reservedDates.includes(formatted);
+          const isReserved = formatted in reservedMap;
+          const quantity = reservedMap[formatted] || 0;
           const day = date.getDay();
 
           const saladMenu =
@@ -116,13 +115,18 @@ export default function Calendar({
               {isDeadlineVisible && (
                 <DeadlineText>마감: {deadline}</DeadlineText>
               )}
-              {isReserved && <SaladIcon src="/icon/salad.png" alt="reserved" />}
+              {quantity > 0 && (
+                <ReserveInfo>
+                  <SaladIcon src="/icon/salad.png" alt="reserved" />
+                  <QuantityText>x{quantity}</QuantityText>
+                </ReserveInfo>
+              )}
             </DayCell>
           );
         }}
         onClickDay={(date) => {
           const formatted = toYMD(date);
-          const isReserved = reservedDates.includes(formatted);
+          const isReserved = formatted in reservedMap;
 
           const deadline = getDeadline(formatted);
           const now = new Date();
@@ -158,7 +162,7 @@ const StyledCalendar = styled(ReactCalendar)`
   line-height: 1.5;
 
   .react-calendar__tile {
-    height: 100px;
+    height: 130px;
     vertical-align: top;
   }
   .react-calendar__tile--active {
@@ -184,13 +188,25 @@ const DayCell = styled.div`
 `;
 
 const SaladIcon = styled.img`
-  width: 30px;
-  height: 30px;
-  margin-top: 4px;
+  width: 26px;
+  height: 26px;
+  margin-top: 2px;
 `;
 
 const DeadlineText = styled.div`
   font-size: 10px;
   color: red;
   margin-top: 2px;
+`;
+
+const ReserveInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+`;
+
+const QuantityText = styled.span`
+  font-size: 12px;
+  font-weight: bold;
 `;

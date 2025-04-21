@@ -1,24 +1,37 @@
 import React from "react";
 import styled from "styled-components";
 
+interface ReserveModalProps {
+  date: string;
+  onClose: () => void;
+  onReserve: () => void;
+  quantity: number;
+  setQuantity: (n: number) => void;
+}
+
 export default function ReserveModal({
   date,
   onClose,
-}: {
-  date: string;
-  onClose: () => void;
-}) {
+  onReserve,
+  quantity,
+  setQuantity,
+}: ReserveModalProps) {
   return (
     <ModalOverlay>
       <ModalContent>
         <CloseIconButton onClick={onClose}>×</CloseIconButton>
         <ModalTitle>{date} 예약</ModalTitle>
-        <StyledSelect>
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
+        <StyledSelect
+          value={quantity}
+          onChange={(e) => setQuantity(Number(e.target.value))}
+        >
+          {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
+            <option key={num} value={num}>
+              {num}
+            </option>
+          ))}
         </StyledSelect>
-        <SubmitButton>샐러드 예약</SubmitButton>
+        <SubmitButton onClick={onReserve}>샐러드 예약</SubmitButton>
       </ModalContent>
     </ModalOverlay>
   );

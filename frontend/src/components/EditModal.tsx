@@ -1,26 +1,41 @@
 import React from "react";
 import styled from "styled-components";
 
+interface EditModalProps {
+  date: string;
+  onClose: () => void;
+  onUpdate: () => void;
+  onCancel: () => void;
+  quantity: number;
+  setQuantity: (n: number) => void;
+}
+
 export default function EditModal({
   date,
   onClose,
-}: {
-  date: string;
-  onClose: () => void;
-}) {
+  onUpdate,
+  onCancel,
+  quantity,
+  setQuantity,
+}: EditModalProps) {
   return (
     <ModalOverlay>
       <ModalContent>
         <CloseIconButton onClick={onClose}>×</CloseIconButton>
         <ModalTitle>{date} 변경</ModalTitle>
-        <StyledSelect>
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
+        <StyledSelect
+          value={quantity}
+          onChange={(e) => setQuantity(Number(e.target.value))}
+        >
+          {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
+            <option key={num} value={num}>
+              {num}
+            </option>
+          ))}
         </StyledSelect>
         <ButtonRow>
-          <ActionButton>예약 개수 변경</ActionButton>
-          <ActionButton>예약 취소</ActionButton>
+          <ActionButton onClick={onUpdate}>예약 개수 변경</ActionButton>
+          <ActionButton onClick={onCancel}>예약 취소</ActionButton>
         </ButtonRow>
       </ModalContent>
     </ModalOverlay>

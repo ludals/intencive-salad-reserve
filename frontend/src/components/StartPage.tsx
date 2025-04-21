@@ -6,21 +6,25 @@ import ReserveModal from "@/components/ReserveModal";
 import EditModal from "@/components/EditModal";
 
 export default function StartPage() {
-  const [reservedDates] = useState([
-    "2025-04-04",
-    "2025-04-09",
-    "2025-04-15",
-    "2025-04-21",
-    "2025-04-25",
-    "2025-04-29",
-  ]);
-
-  const [form, setForm] = useState({ name: "", id: "", dept: "" });
+  const [reservedMap, setReservedMap] = useState<{ [date: string]: number }>(
+    {}
+  );
+  const [form, setForm] = useState<{
+    name: string;
+    id: string;
+    dept: string;
+    user_id?: number;
+  }>({
+    name: "",
+    id: "",
+    dept: "",
+  });
   const [submitted, setSubmitted] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showReserveModal, setShowReserveModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedQuantity, setSelectedQuantity] = useState(1);
 
   useEffect(() => {
     const saved = localStorage.getItem("userForm");
@@ -28,15 +32,55 @@ export default function StartPage() {
       const parsed = JSON.parse(saved);
       setForm(parsed);
       setSubmitted(true);
+
+      fetch(`http://localhost:4000/api/reservations?user_id=${parsed.user_id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const map: { [date: string]: number } = {};
+          data.forEach((item: any) => {
+            const date = item.reserve_date.slice(0, 10);
+            map[date] = item.quantity;
+          });
+          console.log("✅ 예약 map:", map);
+          setReservedMap(map);
+        });
     } else {
       setIsModalOpen(true);
     }
   }, []);
 
-  const handleSubmit = (data: typeof form) => {
-    setForm(data);
-    setSubmitted(true);
-    setIsModalOpen(false);
+  const handleSubmit = async (data: typeof form) => {
+    try {
+      const res = await fetch("http://localhost:4000/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.name,
+          emp_id: data.id,
+          department: data.dept,
+        }),
+      });
+
+      const user = await res.json();
+      const fullForm = { ...data, user_id: user.id };
+      localStorage.setItem("userForm", JSON.stringify(fullForm));
+      setForm(fullForm);
+      setSubmitted(true);
+      setIsModalOpen(false);
+
+      const reservationsRes = await fetch(
+        `http://localhost:4000/api/reservations?user_id=${user.id}`
+      );
+      const reservations = await reservationsRes.json();
+      const map: { [date: string]: number } = {};
+      reservations.forEach((item: any) => {
+        const date = item.reserve_date.slice(0, 10);
+        map[date] = item.quantity;
+      });
+      setReservedMap(map);
+    } catch (e) {
+      console.error("사용자 등록 실패", e);
+    }
   };
 
   const handleDateClick = (date: string, isReserved: boolean) => {
@@ -48,6 +92,84 @@ export default function StartPage() {
     }
   };
 
+  const handleReserve = async () => {
+    if (!form.user_id || !selectedDate) return;
+    try {
+      const res = await fetch("http://localhost:4000/api/reservations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: form.user_id,
+          reserve_date: selectedDate,
+          quantity: selectedQuantity,
+        }),
+      });
+      if (res.ok) {
+        setReservedMap((prev) => ({
+          ...prev,
+          [selectedDate]: selectedQuantity,
+        }));
+        setShowReserveModal(false);
+      } else {
+        alert(await res.text());
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!form.user_id || !selectedDate) return;
+    try {
+      const res = await fetch("http://localhost:4000/api/reservations", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: form.user_id,
+          reserve_date: selectedDate,
+          quantity: selectedQuantity,
+        }),
+      });
+      if (res.ok) {
+        setReservedMap((prev) => ({
+          ...prev,
+          [selectedDate]: selectedQuantity,
+        }));
+        setShowEditModal(false);
+      } else {
+        alert(await res.text());
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!form.user_id || !selectedDate) return;
+    try {
+      const res = await fetch("http://localhost:4000/api/reservations", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: form.user_id,
+          reserve_date: selectedDate,
+        }),
+      });
+      if (res.ok) {
+        setReservedMap((prev) => {
+          const updated = { ...prev };
+          delete updated[selectedDate];
+          return updated;
+        });
+        setShowEditModal(false);
+      } else {
+        alert(await res.text());
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <PageWrapper>
       <InfoModal isOpen={isModalOpen} onSubmit={handleSubmit} />
@@ -55,13 +177,19 @@ export default function StartPage() {
         <ReserveModal
           date={selectedDate}
           onClose={() => setShowReserveModal(false)}
+          onReserve={handleReserve}
+          quantity={selectedQuantity}
+          setQuantity={setSelectedQuantity}
         />
       )}
-
       {showEditModal && selectedDate && (
         <EditModal
           date={selectedDate}
           onClose={() => setShowEditModal(false)}
+          onUpdate={handleUpdate}
+          onCancel={handleCancel}
+          quantity={selectedQuantity}
+          setQuantity={setSelectedQuantity}
         />
       )}
       <ContentGrid>
@@ -73,12 +201,8 @@ export default function StartPage() {
           )}
           {submitted && <WelcomeText>{form.name}님 😊</WelcomeText>}
           <Title>샐러드 간편 예약</Title>
-          <Calendar
-            reservedDates={reservedDates}
-            onDateClick={handleDateClick}
-          />
+          <Calendar reservedMap={reservedMap} onDateClick={handleDateClick} />
         </LeftSide>
-
         <RightSide>
           <Card>
             <CardTitle>샐러드 예약 절차</CardTitle>
@@ -87,7 +211,8 @@ export default function StartPage() {
               날짜를 선택 후 예약 팝업을 통해 샐러드를 예약하시면 됩니다.
               <br />
               <br /> 샐러드 예약은 마감일 17시까지 입니다.
-              <br /> <br /> 예약 후 변경 및 취소는 마감일 17시까지 가능합니다.
+              <br />
+              <br /> 예약 후 변경 및 취소는 마감일 17시까지 가능합니다.
             </CardText>
           </Card>
           <Card>
@@ -95,8 +220,9 @@ export default function StartPage() {
             <CardText>
               예약 후 미수령 하더라도 해당일에 샐러드를 이용한 것으로 간주하여
               이용 대금이 청구되오니 이용에 참고 바랍니다.
-              <br /> <br /> 수령시간은 11시부터 17시까지이며, 17시 이후에는 폐기
-              처리 되니 반드시 17시 이전에 수령해주시기 바랍니다.
+              <br />
+              <br /> 수령시간은 11시부터 17시까지이며, 17시 이후에는 폐기 처리
+              되니 반드시 17시 이전에 수령해주시기 바랍니다.
             </CardText>
           </Card>
         </RightSide>
@@ -142,7 +268,7 @@ const Title = styled.h1`
 const Card = styled.div`
   background-color: white;
   padding: 20px;
-  height: 37%;
+  height: 45%;
   border-radius: 16px;
   align-items: center;
   margin-bottom: 30px;
