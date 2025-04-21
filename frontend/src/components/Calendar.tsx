@@ -74,13 +74,12 @@ export default function Calendar({ reservedMap, onDateClick }: CalendarProps) {
           const formatted = toYMD(date);
           const isHoliday = isWeekend(date) || holidays.has(formatted);
           const deadline = getDeadline(formatted);
-
+          const deadlineDate = new Date(`${deadline}T17:00:00`);
           const now = new Date();
-          now.setDate(now.getDate() - 1);
-          const isDeadlineOver = now > new Date(deadline);
+          const isDeadlineOver = now > deadlineDate;
           const msInDay = 1000 * 60 * 60 * 24;
           const isOverWeek =
-            (new Date(deadline).getTime() - now.getTime()) / msInDay > 6;
+            (deadlineDate.getTime() - now.getTime()) / msInDay > 6;
 
           const shouldHighlight = !isHoliday && !isDeadlineOver && !isOverWeek;
 
@@ -88,7 +87,6 @@ export default function Calendar({ reservedMap, onDateClick }: CalendarProps) {
         }}
         tileContent={({ date }) => {
           const formatted = toYMD(date);
-          const isReserved = formatted in reservedMap;
           const quantity = reservedMap[formatted] || 0;
           const day = date.getDay();
 
@@ -98,12 +96,12 @@ export default function Calendar({ reservedMap, onDateClick }: CalendarProps) {
               : "";
 
           const deadline = getDeadline(formatted);
+          const deadlineDate = new Date(`${deadline}T17:00:00`);
           const now = new Date();
-          now.setDate(now.getDate() - 1);
-          const isDeadlineOver = now > new Date(deadline);
+          const isDeadlineOver = now > deadlineDate;
           const msInDay = 1000 * 60 * 60 * 24;
           const isOverWeek =
-            (new Date(deadline).getTime() - now.getTime()) / msInDay > 6;
+            (deadlineDate.getTime() - now.getTime()) / msInDay > 6;
           const isHoliday = isWeekend(date) || holidays.has(formatted);
 
           const isDeadlineVisible =
@@ -129,12 +127,12 @@ export default function Calendar({ reservedMap, onDateClick }: CalendarProps) {
           const isReserved = formatted in reservedMap;
 
           const deadline = getDeadline(formatted);
+          const deadlineDate = new Date(`${deadline}T17:00:00`);
           const now = new Date();
-          now.setDate(now.getDate() - 1);
-          const isDeadlineOver = now > new Date(deadline);
+          const isDeadlineOver = now > deadlineDate;
           const msInDay = 1000 * 60 * 60 * 24;
           const isOverWeek =
-            (new Date(deadline).getTime() - now.getTime()) / msInDay > 6;
+            (deadlineDate.getTime() - now.getTime()) / msInDay > 6;
           const isHoliday = isWeekend(date) || holidays.has(formatted);
 
           const isDeadlineVisible =
