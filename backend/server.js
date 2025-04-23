@@ -3,6 +3,7 @@ const cors = require("cors");
 const app = express();
 const userRoutes = require("./routes/user");
 const reservationRoutes = require("./routes/reservation");
+const adminRoutes = require("./routes/admin");
 
 require("dotenv").config();
 
@@ -15,6 +16,7 @@ app.get("/api/hello", (req, res) => {
 
 app.use("/api/users", userRoutes);
 app.use("/api/reservations", reservationRoutes);
+app.use("/api/admin", adminRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {

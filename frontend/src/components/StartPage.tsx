@@ -6,25 +6,24 @@ import ReserveModal from "@/components/ReserveModal";
 import EditModal from "@/components/EditModal";
 
 export default function StartPage() {
-  const [reservedMap, setReservedMap] = useState<{ [date: string]: number }>(
-    {}
-  );
+  const [reservedMap, setReservedMap] = useState<{ [key: string]: number }>({});
   const [form, setForm] = useState<{
     name: string;
     id: string;
     dept: string;
     user_id?: number;
-  }>({
-    name: "",
-    id: "",
-    dept: "",
-  });
+  }>({ name: "", id: "", dept: "" });
   const [submitted, setSubmitted] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showReserveModal, setShowReserveModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedQuantity, setSelectedQuantity] = useState(1);
+  const [adminReservations, setAdminReservations] = useState<any[]>([]);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [menuByDay, setMenuByDay] = useState<{ [day: number]: string }>({});
+
+  const isAdmin = form.id === "999999";
 
   useEffect(() => {
     const saved = localStorage.getItem("userForm");
@@ -32,147 +31,170 @@ export default function StartPage() {
       const parsed = JSON.parse(saved);
       setForm(parsed);
       setSubmitted(true);
-
       fetch(`http://localhost:4000/api/reservations?user_id=${parsed.user_id}`)
         .then((res) => res.json())
         .then((data) => {
-          const map: { [date: string]: number } = {};
-          data.forEach((item: any) => {
-            const date = item.reserve_date.slice(0, 10);
-            map[date] = item.quantity;
+          const map: { [key: string]: number } = {};
+          data.forEach((r: any) => {
+            const key = r.reserve_date.slice(0, 10);
+            map[key] = r.quantity;
           });
-          console.log("✅ 예약 map:", map);
           setReservedMap(map);
         });
     } else {
       setIsModalOpen(true);
     }
+    fetch("http://localhost:4000/api/admin/menu")
+      .then((res) => res.json())
+      .then((data) => {
+        const menuMap: { [key: number]: string } = {};
+        data.forEach((item: any) => {
+          menuMap[item.weekday] = item.menu;
+        });
+        setMenuByDay(menuMap);
+      });
   }, []);
 
   const handleSubmit = async (data: typeof form) => {
-    try {
-      const res = await fetch("http://localhost:4000/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: data.name,
-          emp_id: data.id,
-          department: data.dept,
-        }),
-      });
+    const res = await fetch("http://localhost:4000/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: data.name,
+        emp_id: data.id,
+        department: data.dept,
+      }),
+    });
+    const user = await res.json();
 
-      const user = await res.json();
-      const fullForm = { ...data, user_id: user.id };
-      localStorage.setItem("userForm", JSON.stringify(fullForm));
-      setForm(fullForm);
-      setSubmitted(true);
-      setIsModalOpen(false);
+    const fullForm = { ...data, user_id: user.id };
+    localStorage.setItem("userForm", JSON.stringify(fullForm));
+    setForm(fullForm);
+    setSubmitted(true);
+    setIsModalOpen(false);
 
-      const reservationsRes = await fetch(
-        `http://localhost:4000/api/reservations?user_id=${user.id}`
-      );
-      const reservations = await reservationsRes.json();
-      const map: { [date: string]: number } = {};
-      reservations.forEach((item: any) => {
-        const date = item.reserve_date.slice(0, 10);
-        map[date] = item.quantity;
-      });
-      setReservedMap(map);
-    } catch (e) {
-      console.error("사용자 등록 실패", e);
-    }
+    const reservationsRes = await fetch(
+      `http://localhost:4000/api/reservations?user_id=${user.id}`
+    );
+    const reservations = await reservationsRes.json();
+    const map: { [key: string]: number } = {};
+    reservations.forEach((r: any) => {
+      map[r.reserve_date] = r.quantity;
+    });
+    setReservedMap(map);
   };
 
-  const handleDateClick = (date: string, isReserved: boolean) => {
-    setSelectedDate(date);
-    if (isReserved) {
-      setShowEditModal(true);
-    } else {
-      setShowReserveModal(true);
+  const handleMenuSave = async () => {
+    for (const day of [1, 2, 3, 4, 5]) {
+      const menu = menuByDay[day];
+      await fetch("http://localhost:4000/api/admin/menu", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ day, menu }),
+      });
     }
+    alert("메뉴가 저장되었습니다.");
+  };
+
+  const handleDateClick = async (
+    date: string,
+    isReserved: boolean,
+    isDeadlineVisible: boolean
+  ) => {
+    if (!isDeadlineVisible) return;
+    setSelectedDate(date);
+    if (isAdmin) {
+      const res = await fetch(
+        `http://localhost:4000/api/admin/reservations/${date}`
+      );
+      const data = await res.json();
+      setAdminReservations(data);
+      setShowAdminModal(true);
+      return;
+    }
+    if (isReserved) setShowEditModal(true);
+    else setShowReserveModal(true);
   };
 
   const handleReserve = async () => {
     if (!form.user_id || !selectedDate) return;
-    try {
-      const res = await fetch("http://localhost:4000/api/reservations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: form.user_id,
-          reserve_date: selectedDate,
-          quantity: selectedQuantity,
-        }),
-      });
-      if (res.ok) {
-        setReservedMap((prev) => ({
-          ...prev,
-          [selectedDate]: selectedQuantity,
-        }));
-        setShowReserveModal(false);
-      } else {
-        alert(await res.text());
-      }
-    } catch (e) {
-      console.error(e);
+    const res = await fetch("http://localhost:4000/api/reservations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: form.user_id,
+        reserve_date: selectedDate,
+        quantity: selectedQuantity,
+      }),
+    });
+    if (res.ok) {
+      setReservedMap((prev) => ({ ...prev, [selectedDate]: selectedQuantity }));
+      setShowReserveModal(false);
+    } else {
+      alert(await res.text());
     }
   };
 
   const handleUpdate = async () => {
     if (!form.user_id || !selectedDate) return;
-    try {
-      const res = await fetch("http://localhost:4000/api/reservations", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: form.user_id,
-          reserve_date: selectedDate,
-          quantity: selectedQuantity,
-        }),
-      });
-      if (res.ok) {
-        setReservedMap((prev) => ({
-          ...prev,
-          [selectedDate]: selectedQuantity,
-        }));
-        setShowEditModal(false);
-      } else {
-        alert(await res.text());
-      }
-    } catch (e) {
-      console.error(e);
+    const res = await fetch("http://localhost:4000/api/reservations", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: form.user_id,
+        reserve_date: selectedDate,
+        quantity: selectedQuantity,
+      }),
+    });
+    if (res.ok) {
+      setReservedMap((prev) => ({ ...prev, [selectedDate]: selectedQuantity }));
+      setShowEditModal(false);
+    } else {
+      alert(await res.text());
     }
   };
 
   const handleCancel = async () => {
     if (!form.user_id || !selectedDate) return;
-    try {
-      const res = await fetch("http://localhost:4000/api/reservations", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: form.user_id,
-          reserve_date: selectedDate,
-        }),
+    const res = await fetch("http://localhost:4000/api/reservations", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: form.user_id,
+        reserve_date: selectedDate,
+      }),
+    });
+    if (res.ok) {
+      setReservedMap((prev) => {
+        const map = { ...prev };
+        delete map[selectedDate];
+        return map;
       });
-      if (res.ok) {
-        setReservedMap((prev) => {
-          const updated = { ...prev };
-          delete updated[selectedDate];
-          return updated;
-        });
-        setShowEditModal(false);
-      } else {
-        alert(await res.text());
-      }
-    } catch (e) {
-      console.error(e);
+      setShowEditModal(false);
+    } else {
+      alert(await res.text());
     }
   };
 
   return (
     <PageWrapper>
       <InfoModal isOpen={isModalOpen} onSubmit={handleSubmit} />
+      {isAdmin && (
+        <AdminMenuEditor>
+          {[1, 2, 3, 4, 5].map((day) => (
+            <MenuItem key={day}>
+              <label>{"월화수목금"[day - 1]}요일</label>
+              <input
+                value={menuByDay[day] || ""}
+                onChange={(e) =>
+                  setMenuByDay((prev) => ({ ...prev, [day]: e.target.value }))
+                }
+              />
+            </MenuItem>
+          ))}
+          <SaveMenuButton onClick={handleMenuSave}>메뉴 저장</SaveMenuButton>
+        </AdminMenuEditor>
+      )}
       {showReserveModal && selectedDate && (
         <ReserveModal
           date={selectedDate}
@@ -192,6 +214,21 @@ export default function StartPage() {
           setQuantity={setSelectedQuantity}
         />
       )}
+      {showAdminModal && (
+        <ModalOverlay>
+          <ModalContent>
+            <h3>{selectedDate} 예약자 목록</h3>
+            <ul>
+              {adminReservations.map((r, i) => (
+                <li key={i}>
+                  {r.name} ({r.emp_id}) - {r.quantity}개
+                </li>
+              ))}
+            </ul>
+            <button onClick={() => setShowAdminModal(false)}>닫기</button>
+          </ModalContent>
+        </ModalOverlay>
+      )}
       <ContentGrid>
         <LeftSide>
           {!submitted && (
@@ -201,7 +238,12 @@ export default function StartPage() {
           )}
           {submitted && <WelcomeText>{form.name}님 😊</WelcomeText>}
           <Title>샐러드 간편 예약</Title>
-          <Calendar reservedMap={reservedMap} onDateClick={handleDateClick} />
+          <Calendar
+            reservedMap={reservedMap}
+            isAdmin={isAdmin}
+            menuByDay={menuByDay}
+            onDateClick={handleDateClick}
+          />
         </LeftSide>
         <RightSide>
           <Card>
@@ -211,8 +253,7 @@ export default function StartPage() {
               날짜를 선택 후 예약 팝업을 통해 샐러드를 예약하시면 됩니다.
               <br />
               <br /> 샐러드 예약은 마감일 17시까지 입니다.
-              <br />
-              <br /> 예약 후 변경 및 취소는 마감일 17시까지 가능합니다.
+              <br /> <br /> 예약 후 변경 및 취소는 마감일 17시까지 가능합니다.
             </CardText>
           </Card>
           <Card>
@@ -220,9 +261,8 @@ export default function StartPage() {
             <CardText>
               예약 후 미수령 하더라도 해당일에 샐러드를 이용한 것으로 간주하여
               이용 대금이 청구되오니 이용에 참고 바랍니다.
-              <br />
-              <br /> 수령시간은 11시부터 17시까지이며, 17시 이후에는 폐기 처리
-              되니 반드시 17시 이전에 수령해주시기 바랍니다.
+              <br /> <br /> 수령시간은 11시부터 17시까지이며, 17시 이후에는 폐기
+              처리 되니 반드시 17시 이전에 수령해주시기 바랍니다.
             </CardText>
           </Card>
         </RightSide>
@@ -268,7 +308,7 @@ const Title = styled.h1`
 const Card = styled.div`
   background-color: white;
   padding: 20px;
-  height: 45%;
+  height: 37%;
   border-radius: 16px;
   align-items: center;
   margin-bottom: 30px;
@@ -299,13 +339,59 @@ const InfoButton = styled.button`
   cursor: pointer;
 `;
 
-const SubmitButton = styled.button`
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  padding: 32px;
+  border-radius: 16px;
+  width: 300px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+`;
+
+const AdminMenuEditor = styled.div`
+  background: #fff7ea;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+`;
+
+const MenuItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+
+  label {
+    width: 60px;
+    font-weight: bold;
+  }
+
+  input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+  }
+`;
+
+const SaveMenuButton = styled.button`
   background-color: #10b981;
   color: white;
   border: none;
-  padding: 8px 14px;
-  border-radius: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: bold;
   cursor: pointer;
+  margin-top: 8px;
 `;
 
 const WelcomeText = styled.div`

@@ -1,4 +1,3 @@
-// ✅ Calendar.tsx (수정 버전: quantity 기반 아이콘)
 import React from "react";
 import ReactCalendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
@@ -6,20 +5,14 @@ import styled from "styled-components";
 
 interface CalendarProps {
   reservedMap: { [date: string]: number };
+  isAdmin: boolean;
+  menuByDay: { [day: number]: string };
   onDateClick: (
     date: string,
     isReserved: boolean,
     isDeadlineVisible: boolean
   ) => void;
 }
-
-const menuByDay = {
-  1: "우삼겹쉬림프 샐러드",
-  2: "치킨텐더 샐러드",
-  3: "치아바타리코타치즈 샐러드",
-  4: "불고기파스타 샐러드",
-  5: "블랙페퍼닭가슴살 샐러드",
-};
 
 const isWeekend = (date: Date) => {
   const day = date.getDay();
@@ -46,16 +39,12 @@ const holidays = new Set([
 const getDeadline = (reservedDate: string): string => {
   const d = new Date(reservedDate);
   d.setDate(d.getDate() - 1);
-
   let businessDays = 0;
-
   while (true) {
     const key = d.toISOString().slice(0, 10);
     if (!isWeekend(d) && !holidays.has(key)) {
       businessDays++;
-      if (businessDays === 2) {
-        return key;
-      }
+      if (businessDays === 2) return key;
     }
     d.setDate(d.getDate() - 1);
   }
@@ -65,7 +54,12 @@ const toYMD = (date: Date): string => {
   return date.toLocaleDateString("sv-SE");
 };
 
-export default function Calendar({ reservedMap, onDateClick }: CalendarProps) {
+export default function Calendar({
+  reservedMap,
+  isAdmin,
+  menuByDay,
+  onDateClick,
+}: CalendarProps) {
   return (
     <CalendarWrapper>
       <StyledCalendar
@@ -80,20 +74,15 @@ export default function Calendar({ reservedMap, onDateClick }: CalendarProps) {
           const msInDay = 1000 * 60 * 60 * 24;
           const isOverWeek =
             (deadlineDate.getTime() - now.getTime()) / msInDay > 6;
-
-          const shouldHighlight = !isHoliday && !isDeadlineOver && !isOverWeek;
-
+          const shouldHighlight =
+            !isHoliday && (!isDeadlineOver || isAdmin) && !isOverWeek;
           return shouldHighlight ? "highlight-cell" : "gray-cell";
         }}
         tileContent={({ date }) => {
           const formatted = toYMD(date);
           const quantity = reservedMap[formatted] || 0;
           const day = date.getDay();
-
-          const saladMenu =
-            day >= 1 && day <= 5
-              ? menuByDay[day as keyof typeof menuByDay]
-              : "";
+          const saladMenu = day >= 1 && day <= 5 ? menuByDay[day] : "";
 
           const deadline = getDeadline(formatted);
           const deadlineDate = new Date(`${deadline}T17:00:00`);
@@ -103,9 +92,8 @@ export default function Calendar({ reservedMap, onDateClick }: CalendarProps) {
           const isOverWeek =
             (deadlineDate.getTime() - now.getTime()) / msInDay > 6;
           const isHoliday = isWeekend(date) || holidays.has(formatted);
-
           const isDeadlineVisible =
-            !isHoliday && !isDeadlineOver && !isOverWeek;
+            !isHoliday && (!isDeadlineOver || isAdmin) && !isOverWeek;
 
           return (
             <DayCell>
@@ -125,7 +113,6 @@ export default function Calendar({ reservedMap, onDateClick }: CalendarProps) {
         onClickDay={(date) => {
           const formatted = toYMD(date);
           const isReserved = formatted in reservedMap;
-
           const deadline = getDeadline(formatted);
           const deadlineDate = new Date(`${deadline}T17:00:00`);
           const now = new Date();
@@ -134,13 +121,9 @@ export default function Calendar({ reservedMap, onDateClick }: CalendarProps) {
           const isOverWeek =
             (deadlineDate.getTime() - now.getTime()) / msInDay > 6;
           const isHoliday = isWeekend(date) || holidays.has(formatted);
-
           const isDeadlineVisible =
-            !isHoliday && !isDeadlineOver && !isOverWeek;
-
-          if (isDeadlineVisible) {
-            onDateClick(formatted, isReserved, isDeadlineVisible);
-          }
+            !isHoliday && (!isDeadlineOver || isAdmin) && !isOverWeek;
+          onDateClick(formatted, isReserved, isDeadlineVisible);
         }}
       />
     </CalendarWrapper>
