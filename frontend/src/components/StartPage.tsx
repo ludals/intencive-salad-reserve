@@ -22,6 +22,7 @@ export default function StartPage() {
   const [adminReservations, setAdminReservations] = useState<any[]>([]);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [menuByDay, setMenuByDay] = useState<{ [day: number]: string }>({});
+  const [showMenuModal, setShowMenuModal] = useState(false);
 
   const isAdmin = form.id === "999999";
 
@@ -72,16 +73,7 @@ export default function StartPage() {
     setForm(fullForm);
     setSubmitted(true);
     setIsModalOpen(false);
-
-    const reservationsRes = await fetch(
-      `http://localhost:4000/api/reservations?user_id=${user.id}`
-    );
-    const reservations = await reservationsRes.json();
-    const map: { [key: string]: number } = {};
-    reservations.forEach((r: any) => {
-      map[r.reserve_date] = r.quantity;
-    });
-    setReservedMap(map);
+    window.location.reload();
   };
 
   const handleMenuSave = async () => {
@@ -180,20 +172,48 @@ export default function StartPage() {
     <PageWrapper>
       <InfoModal isOpen={isModalOpen} onSubmit={handleSubmit} />
       {isAdmin && (
-        <AdminMenuEditor>
-          {[1, 2, 3, 4, 5].map((day) => (
-            <MenuItem key={day}>
-              <label>{"월화수목금"[day - 1]}요일</label>
-              <input
-                value={menuByDay[day] || ""}
-                onChange={(e) =>
-                  setMenuByDay((prev) => ({ ...prev, [day]: e.target.value }))
+        <MenuEditButton onClick={() => setShowMenuModal(true)}>
+          메뉴 수정
+        </MenuEditButton>
+      )}
+      {showMenuModal && (
+        <ModalOverlay>
+          <ModalContent>
+            <h3>요일별 메뉴 수정</h3>
+            {([1, 2, 3, 4, 5] as const).map((day) => (
+              <ModalField key={day}>
+                <label>{"월화수목금"[day - 1]}요일</label>
+                <input
+                  value={menuByDay[day] || ""}
+                  onChange={(e) =>
+                    setMenuByDay((prev) => ({
+                      ...prev,
+                      [day]: e.target.value,
+                    }))
+                  }
+                />
+              </ModalField>
+            ))}
+            <SubmitButton
+              onClick={async () => {
+                for (const day of [1, 2, 3, 4, 5]) {
+                  await fetch("http://localhost:4000/api/admin/menu", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ day, menu: menuByDay[day] }),
+                  });
                 }
-              />
-            </MenuItem>
-          ))}
-          <SaveMenuButton onClick={handleMenuSave}>메뉴 저장</SaveMenuButton>
-        </AdminMenuEditor>
+                alert("메뉴가 저장되었습니다.");
+                setShowMenuModal(false);
+              }}
+            >
+              저장
+            </SubmitButton>
+            <CloseButton onClick={() => setShowMenuModal(false)}>
+              닫기
+            </CloseButton>
+          </ModalContent>
+        </ModalOverlay>
       )}
       {showReserveModal && selectedDate && (
         <ReserveModal
@@ -216,17 +236,26 @@ export default function StartPage() {
       )}
       {showAdminModal && (
         <ModalOverlay>
-          <ModalContent>
-            <h3>{selectedDate} 예약자 목록</h3>
-            <ul>
+          <AdminModalBox>
+            <AdminTitle>{selectedDate} 예약자 목록</AdminTitle>
+            <ReservationList>
               {adminReservations.map((r, i) => (
-                <li key={i}>
-                  {r.name} ({r.emp_id}) - {r.quantity}개
-                </li>
+                <ReservationItem key={i}>
+                  <span>{r.name}</span>
+                  <span>{r.emp_id}</span>
+                  <span>{r.quantity}개</span>
+                </ReservationItem>
               ))}
-            </ul>
-            <button onClick={() => setShowAdminModal(false)}>닫기</button>
-          </ModalContent>
+            </ReservationList>
+            <TotalText>
+              총 수량:{" "}
+              {adminReservations.reduce((acc, curr) => acc + curr.quantity, 0)}
+              개
+            </TotalText>
+            <CloseButton onClick={() => setShowAdminModal(false)}>
+              닫기
+            </CloseButton>
+          </AdminModalBox>
         </ModalOverlay>
       )}
       <ContentGrid>
@@ -270,6 +299,57 @@ export default function StartPage() {
     </PageWrapper>
   );
 }
+
+const SubmitButton = styled.button`
+  width: 100%;
+  padding: 12px;
+  background: #222;
+  color: white;
+  border: none;
+  font-weight: bold;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 8px;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  padding: 32px;
+  border-radius: 16px;
+  width: 300px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+`;
+
+const ModalField = styled.div`
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+
+  label {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+
+  input {
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+  }
+`;
+
+const MenuEditButton = styled.button`
+  background-color: #f59e0b;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: bold;
+  width: 120px;
+  cursor: pointer;
+  margin-bottom: 16px;
+`;
 
 const PageWrapper = styled.div`
   width: 100vw;
@@ -349,14 +429,6 @@ const ModalOverlay = styled.div`
   justify-content: center;
 `;
 
-const ModalContent = styled.div`
-  background: white;
-  padding: 32px;
-  border-radius: 16px;
-  width: 300px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-`;
-
 const AdminMenuEditor = styled.div`
   background: #fff7ea;
   padding: 20px;
@@ -398,4 +470,54 @@ const WelcomeText = styled.div`
   font-weight: bold;
   font-size: 18px;
   margin-bottom: 8px;
+`;
+
+const AdminModalBox = styled.div`
+  background: white;
+  padding: 32px;
+  border-radius: 16px;
+  width: 360px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const AdminTitle = styled.h3`
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 8px;
+`;
+
+const ReservationList = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin: 0;
+`;
+
+const ReservationItem = styled.li`
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+`;
+
+const TotalText = styled.div`
+  font-weight: bold;
+  text-align: right;
+  margin-top: 12px;
+`;
+
+const CloseButton = styled.button`
+  margin-top: 12px;
+  background: #222;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
 `;
