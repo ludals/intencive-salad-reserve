@@ -15,3 +15,10 @@ CREATE TABLE IF NOT EXISTS reservations (
   UNIQUE(user_id, reserve_date),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS menus (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  weekday TINYINT NOT NULL,
+  menu VARCHAR(200) NOT NULL,
+  UNIQUE(weekday)
+);

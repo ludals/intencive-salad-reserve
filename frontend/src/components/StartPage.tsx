@@ -32,7 +32,9 @@ export default function StartPage() {
       const parsed = JSON.parse(saved);
       setForm(parsed);
       setSubmitted(true);
-      fetch(`http://175.45.208:4000/api/reservations?user_id=${parsed.user_id}`)
+      fetch(
+        `http://27.96.144.119:4000/api/reservations?user_id=${parsed.user_id}`
+      )
         .then((res) => res.json())
         .then((data) => {
           const map: { [key: string]: number } = {};
@@ -45,19 +47,30 @@ export default function StartPage() {
     } else {
       setIsModalOpen(true);
     }
-    fetch("http://175.45.208:4000/api/admin/menu")
-      .then((res) => res.json())
+  }, []);
+
+  useEffect(() => {
+    console.log("🔥 메뉴 fetch 실행");
+    fetch("http://27.96.144.119:4000/api/admin/menu")
+      .then((res) => {
+        console.log("✅ 메뉴 fetch 응답 상태:", res.status);
+        return res.json();
+      })
       .then((data) => {
         const menuMap: { [key: number]: string } = {};
         data.forEach((item: any) => {
           menuMap[item.weekday] = item.menu;
         });
+        console.log("🍽 메뉴 데이터 로딩 완료:", menuMap);
         setMenuByDay(menuMap);
+      })
+      .catch((err) => {
+        console.error("❌ 메뉴 fetch 실패:", err);
       });
   }, []);
 
   const handleSubmit = async (data: typeof form) => {
-    const res = await fetch("http://175.45.208:4000/api/users", {
+    const res = await fetch("http://27.96.144.119:4000/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -79,7 +92,7 @@ export default function StartPage() {
   const handleMenuSave = async () => {
     for (const day of [1, 2, 3, 4, 5]) {
       const menu = menuByDay[day];
-      await fetch("http://175.45.208:4000/api/admin/menu", {
+      await fetch("http://27.96.144.119:4000/api/admin/menu", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ day, menu }),
@@ -97,7 +110,7 @@ export default function StartPage() {
     setSelectedDate(date);
     if (isAdmin) {
       const res = await fetch(
-        `http://175.45.208:4000/api/admin/reservations/${date}`
+        `http://27.96.144.119:4000/api/admin/reservations/${date}`
       );
       const data = await res.json();
       setAdminReservations(data);
@@ -110,7 +123,7 @@ export default function StartPage() {
 
   const handleReserve = async () => {
     if (!form.user_id || !selectedDate) return;
-    const res = await fetch("http://175.45.208:4000/api/reservations", {
+    const res = await fetch("http://27.96.144.119:4000/api/reservations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -129,7 +142,7 @@ export default function StartPage() {
 
   const handleUpdate = async () => {
     if (!form.user_id || !selectedDate) return;
-    const res = await fetch("http://175.45.208:4000/api/reservations", {
+    const res = await fetch("http://27.96.144.119:4000/api/reservations", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -148,7 +161,7 @@ export default function StartPage() {
 
   const handleCancel = async () => {
     if (!form.user_id || !selectedDate) return;
-    const res = await fetch("http://175.45.208:4000/api/reservations", {
+    const res = await fetch("http://27.96.144.119:4000/api/reservations", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -197,7 +210,7 @@ export default function StartPage() {
             <SubmitButton
               onClick={async () => {
                 for (const day of [1, 2, 3, 4, 5]) {
-                  await fetch("http://175.45.208:4000/api/admin/menu", {
+                  await fetch("http://27.96.144.119:4000/api/admin/menu", {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ day, menu: menuByDay[day] }),
